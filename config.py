@@ -5,13 +5,18 @@ load_dotenv()
 
 class Config:
     # AWS設定
-    AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
-    AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
+    AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID', '')
+    AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY', '')
     AWS_DEFAULT_REGION = os.getenv('AWS_DEFAULT_REGION', 'ap-northeast-3')
     
     # Bedrock設定
-    BEDROCK_MODEL_ID = "apac.anthropic.claude-3-5-sonnet-20241022-v2:0"
-    BEDROCK_MODEL_ARN = "arn:aws:bedrock:ap-northeast-3:YOUR_ACCOUNT_ID:inference-profile/apac.anthropic.claude-3-5-sonnet-20241022-v2:0"
+    BEDROCK_MODEL_ID = os.getenv('BEDROCK_MODEL_ID', 'apac.anthropic.claude-3-5-sonnet-20241022-v2:0')
+    BEDROCK_MODEL_ARN = os.getenv('BEDROCK_MODEL_ARN', '')
+    
+    # AI分析設定
+    TEMPERATURE = 0.0  # 温度差設定 (0.0-1.0, 低いほど一貫性が高く、高いほど創造性が高い) デフォルト0.3
+    TOP_P = 0.9       # Top-p設定 (0.0-1.0, 核サンプリング)
+    TOP_K = 50        # Top-k設定 (1-100, 上位k個のトークンから選択)
     
     # Flask設定
     SECRET_KEY = os.getenv('SECRET_KEY', 'your-secret-key-here')

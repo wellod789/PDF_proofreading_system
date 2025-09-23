@@ -1,13 +1,23 @@
 # PDF校正システム
 
-AWS Bedrock Claude 3.5 Sonnet v2を使用したPDF校正システムです。
+AWS Bedrock Claude 3.5 Sonnet v2を使用した高度なPDF校正システムです。テキスト分析と画像分析を統合し、AIが最適化された校正結果を提供します。
 
 ## 機能
 
-- **誤字脱字チェック**: テキストの誤字脱字を自動検出
-- **画像配置チェック**: 画像の配置ミスや不適切な配置を検出
-- **エクセル出力**: 校正結果をエクセルファイルで出力
-- **Web UI**: ブラウザで簡単に操作可能
+### 🔍 **統合校正機能**
+- **テキスト分析**: 誤字脱字、文法ミス、表現の不自然さを検出
+- **画像分析**: 不要な線、マーク、編集痕跡、レイアウト問題を検出
+- **AI統合**: テキスト分析と画像分析の結果を統合し、重複を排除
+- **並列処理**: テキスト分析と画像分析を同時実行で高速化
+
+### 📊 **出力機能**
+- **Excel出力**: 統合された校正結果をExcelファイルで出力
+- **詳細表示**: ページごとの詳細な校正結果を表示
+- **プログレス表示**: リアルタイムの処理状況表示
+
+### 🖥️ **UI/UX**
+- **Web版**: ブラウザで簡単に操作可能
+- **GUI版**: デスクトップアプリケーション
 - **認証機能**: ログイン認証によるセキュアなアクセス
 
 ## セットアップ
@@ -50,43 +60,74 @@ cp .env.example .env
 `.env`ファイルを編集して、実際の値を設定：
 
 ```env
-# AWS認証情報
-AWS_ACCESS_KEY_ID=your_actual_access_key
-AWS_SECRET_ACCESS_KEY=your_actual_secret_key
+# AWS設定
+AWS_ACCESS_KEY_ID=your_aws_access_key_id
+AWS_SECRET_ACCESS_KEY=your_aws_secret_access_key
 AWS_DEFAULT_REGION=ap-northeast-3
 
+# Bedrock設定
+BEDROCK_MODEL_ID=apac.anthropic.claude-3-5-sonnet-20241022-v2:0
+BEDROCK_MODEL_ARN=arn:aws:bedrock:ap-northeast-3:YOUR_ACCOUNT_ID:inference-profile/apac.anthropic.claude-3-5-sonnet-20241022-v2:0
+
 # Flask設定
-SECRET_KEY=your_actual_secret_key
-FLASK_DEBUG=False
+SECRET_KEY=your-secret-key-here
+FLASK_DEBUG=True
 
 # 認証設定
-LOGIN_ID=your_login_id
-LOGIN_PASSWORD=your_password
+LOGIN_ID=your-login-id
+LOGIN_PASSWORD=your-password
 ```
 
 ### 5. アプリケーションの起動
 
+**Web版:**
 ```bash
 python app.py
 ```
-
 ブラウザで `http://localhost:5000` にアクセスしてください。
+
+**GUI版:**
+```bash
+python pdf_corrector_gui.py
+```
 
 ## 使用方法
 
+### Web版
 1. ログインページで認証情報を入力
 2. PDFファイルをドラッグ&ドロップまたは選択してアップロード
-3. AIが自動的に校正を実行（最大3ページまで）
-4. 校正結果を確認し、エクセルファイルをダウンロード
+3. AIが自動的にテキスト分析と画像分析を並列実行
+4. 統合された校正結果を確認し、Excelファイルをダウンロード
+
+### GUI版
+1. アプリケーションを起動
+2. 「ファイルを選択」ボタンでPDFファイルを選択
+3. 「校正を開始」ボタンをクリック
+4. リアルタイムでプログレスを確認
+5. 校正結果を確認し、Excelファイルをダウンロード
 
 ## 技術スタック
 
-- **Backend**: Python Flask
+### Backend
+- **Web版**: Python Flask
+- **GUI版**: Python tkinter
 - **AI**: AWS Bedrock Claude 3.5 Sonnet v2
+- **並列処理**: concurrent.futures
+
+### PDF・画像処理
 - **PDF処理**: PyPDF2, pdfplumber
+- **画像変換**: pdf2image
 - **画像処理**: Pillow
 - **Excel出力**: openpyxl
-- **Frontend**: Bootstrap 5
+
+### AI設定
+- **温度差設定**: 一貫性と創造性の調整
+- **Top-p/Top-k**: サンプリング制御
+- **統合処理**: テキストと画像分析の最適化
+
+### Frontend
+- **Web版**: Bootstrap 5
+- **GUI版**: tkinter (ネイティブ)
 - **デプロイ**: AWS Elastic Beanstalk
 
 ## デプロイ

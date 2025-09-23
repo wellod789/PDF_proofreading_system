@@ -1,3 +1,8 @@
+# 環境変数ファイル
+.env
+.env.local
+.env.production
+
 # Python
 __pycache__/
 *.py[cod]
@@ -16,26 +21,17 @@ parts/
 sdist/
 var/
 wheels/
-pip-wheel-metadata/
-share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
 MANIFEST
 
-# Virtual Environment
+# 仮想環境
 venv/
 env/
 ENV/
 env.bak/
 venv.bak/
-
-# Environment Variables
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
 
 # IDE
 .vscode/
@@ -53,37 +49,25 @@ venv.bak/
 ehthumbs.db
 Thumbs.db
 
-# Project Specific
+# アップロードファイル
 uploads/
 outputs/
+converted_images/
+
+# ログファイル
 *.log
+
+# 一時ファイル
+temp_*
 *.tmp
-*.temp
 
-# AWS
-.aws/
+# 設定ファイル（機密情報含む）
+config_bk.py
 
-# Flask
-instance/
-.webassets-cache
-
-# Testing
-.coverage
-.pytest_cache/
-.tox/
-.nox/
-htmlcov/
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# pyenv
-.python-version
-
-# Project specific files to exclude
-_コマンド.txt
+# 圧縮ファイル
 *.zip
 *.tar.gz
+*.rar
 
-# Temporary files
-temp_*
+# 個人用ファイル
+_コマンド.txt
