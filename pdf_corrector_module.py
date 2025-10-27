@@ -9,6 +9,10 @@ from datetime import datetime
 import openpyxl
 from openpyxl.styles import Font, PatternFill
 import pdfplumber
+from pdf2image import convert_from_path
+from PIL import Image
+import io
+import base64
 from config import Config
 
 class PDFCorrector:
@@ -175,8 +179,20 @@ class PDFCorrector:
         
         # データ入力
         for row, correction in enumerate(self.corrections, 2):
+            # タイプの表示名を決定
+            if correction['type'] == 'text':
+                type_name = 'テキスト'
+            elif correction['type'] == 'image':
+                type_name = '画像'
+            elif correction['type'] == 'integrated':
+                type_name = '校正'
+            elif correction['type'] == 'info':
+                type_name = '情報'
+            else:
+                type_name = correction['type']
+            
             ws.cell(row=row, column=1, value=correction['page'])
-            ws.cell(row=row, column=2, value=correction['type'])
+            ws.cell(row=row, column=2, value=type_name)
             ws.cell(row=row, column=3, value=correction['content'])
             ws.cell(row=row, column=4, value=correction['correction'])
         
@@ -194,3 +210,219 @@ class PDFCorrector:
             ws.column_dimensions[column_letter].width = adjusted_width
         
         wb.save(output_path)
+    
+    def run_image_analysis(self, pdf_path):
+        """画像分析処理の実行"""
+        try:
+            # PDFを画像に変換
+            images = convert_from_path(pdf_path, dpi=200)
+            
+            # 最大ページ数制限
+            max_pages = min(len(images), Config.MAX_PDF_PAGES)
+            images = images[:max_pages]
+            
+            corrections = []
+            for i, image in enumerate(images):
+                page_num = i + 1
+                
+                # 画像をbase64エンコード
+                img_buffer = io.BytesIO()
+                image.save(img_buffer, format='PNG')
+                img_base64 = base64.b64encode(img_buffer.getvalue()).decode('utf-8')
+                
+                # AI分析
+                analysis_result = self.analyze_image_with_claude(img_base64, page_num)
+                corrections.append({
+                    'type': 'image',
+                    'page': page_num,
+                    'content': f"ページ {page_num} の画像分析",
+                    'correction': analysis_result
+                })
+            
+            return corrections
+            
+        except Exception as e:
+            print(f"画像分析エラー: {e}")
+            return []
+    
+    def analyze_image_with_claude(self, image_base64, page_num):
+        """Claude 3.5 Sonnet v2で画像を分析"""
+        try:
+            prompt = f"""
+以下のPDFページ（ページ {page_num}）の画像を校正の観点から分析してください。
+
+特に以下の点を重点的にチェックしてください：
+- 不要な線、マーク、編集痕跡
+- レイアウトの問題
+- 視覚的な不整合
+- 画像の配置ミス
+- フォントの不統一
+- 余白の不適切な使用
+
+以下の形式で回答してください:
+- 視覚的問題: [発見した視覚的な問題]
+- 修正提案: [具体的な修正案]
+- その他: [その他の気になる点]
+
+日本語で回答してください。
+"""
+
+            body = json.dumps({
+                "anthropic_version": "bedrock-2023-05-31",
+                "max_tokens": 2500,
+                "temperature": Config.TEMPERATURE,
+                "top_p": Config.TOP_P,
+                "top_k": Config.TOP_K,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "image",
+                                "source": {
+                                    "type": "base64",
+                                    "media_type": "image/png",
+                                    "data": image_base64
+                                }
+                            },
+                            {
+                                "type": "text",
+                                "text": prompt
+                            }
+                        ]
+                    }
+                ]
+            })
+
+            response = self.bedrock_client.invoke_model(
+                modelId=Config.BEDROCK_MODEL_ID,
+                contentType="application/json",
+                accept="application/json",
+                body=body
+            )
+
+            response_body = json.loads(response['body'].read())
+            return response_body['content'][0]['text']
+            
+        except Exception as e:
+            return f"画像分析エラー: {str(e)}"
+    
+    def integrate_analysis_results(self, text_corrections, image_corrections):
+        """AIでテキスト分析と画像分析の結果を統合"""
+        try:
+            # ページごとにグループ化
+            page_groups = {}
+            
+            # テキスト分析結果をページごとにグループ化
+            for correction in text_corrections:
+                page = correction['page']
+                if page not in page_groups:
+                    page_groups[page] = {'text': [], 'image': []}
+                page_groups[page]['text'].append(correction)
+            
+            # 画像分析結果をページごとにグループ化
+            for correction in image_corrections:
+                page = correction['page']
+                if page not in page_groups:
+                    page_groups[page] = {'text': [], 'image': []}
+                page_groups[page]['image'].append(correction)
+            
+            # 各ページの結果をAIで統合
+            integrated_results = []
+            for page_num in sorted(page_groups.keys()):
+                if page_num == 0:  # 情報項目はスキップ
+                    continue
+                    
+                text_results = page_groups[page_num]['text']
+                image_results = page_groups[page_num]['image']
+                
+                # AIで統合
+                integrated_result = self.integrate_page_results_with_ai(page_num, text_results, image_results)
+                integrated_results.append(integrated_result)
+            
+            return integrated_results
+            
+        except Exception as e:
+            # エラーの場合は元の結果をそのまま返す
+            print(f"統合処理エラー: {e}")
+            return text_corrections + image_corrections
+    
+    def integrate_page_results_with_ai(self, page_num, text_results, image_results):
+        """AIでページのテキスト分析と画像分析結果を統合"""
+        try:
+            # テキスト分析結果をまとめる
+            text_summary = ""
+            for result in text_results:
+                text_summary += f"テキスト分析: {result['correction']}\n\n"
+            
+            # 画像分析結果をまとめる
+            image_summary = ""
+            for result in image_results:
+                image_summary += f"画像分析: {result['correction']}\n\n"
+            
+            prompt = f"""
+以下のページ {page_num} のテキスト分析と画像分析の結果を統合し、重複を排除して最適化された校正結果を生成してください。
+
+テキスト分析結果:
+{text_summary}
+
+画像分析結果:
+{image_summary}
+
+統合の指示:
+1. 重複する指摘を統合し、1つの明確な指摘にまとめる
+2. テキスト分析と画像分析の結果を相互補完的に統合する
+3. 優先度の高い問題から順に整理する
+4. 具体的で実行可能な修正提案を提供する
+5. 視覚的な問題とテキストの問題を適切に組み合わせる
+
+以下の形式で校正結果を提供してください:
+
+【校正結果】
+- 問題1: [具体的な問題と修正提案]
+- 問題2: [具体的な問題と修正提案]
+- 問題3: [具体的な問題と修正提案]
+...
+
+日本語で回答してください。
+"""
+
+            body = json.dumps({
+                "anthropic_version": "bedrock-2023-05-31",
+                "max_tokens": 2000,
+                "temperature": Config.TEMPERATURE,
+                "top_p": Config.TOP_P,
+                "top_k": Config.TOP_K,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ]
+            })
+
+            response = self.bedrock_client.invoke_model(
+                modelId=Config.BEDROCK_MODEL_ID,
+                contentType="application/json",
+                accept="application/json",
+                body=body
+            )
+
+            response_body = json.loads(response['body'].read())
+            integrated_correction = response_body['content'][0]['text']
+            
+            return {
+                'type': 'integrated',
+                'page': page_num,
+                'content': f"ページ {page_num} の校正結果",
+                'correction': integrated_correction
+            }
+            
+        except Exception as e:
+            # エラーの場合は元の結果をそのまま返す
+            return {
+                'type': 'integrated',
+                'page': page_num,
+                'content': f"ページ {page_num} の校正結果（エラーにより統合失敗）",
+                'correction': f"統合処理中にエラーが発生しました: {str(e)}\n\nテキスト分析結果:\n{text_summary}\n\n画像分析結果:\n{image_summary}"
+            }

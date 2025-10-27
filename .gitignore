@@ -3,6 +3,11 @@
 .env.local
 .env.production
 
+# configディレクトリの認証情報ファイル（実際の認証情報は除外、テンプレートは含める）
+config/credentials.local.env
+config/credentials.staging.env
+config/credentials.production.env
+
 # Python
 __pycache__/
 *.py[cod]
@@ -71,3 +76,4 @@ config_bk.py
 
 # 個人用ファイル
 _コマンド.txt
+_gomi/

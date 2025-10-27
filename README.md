@@ -49,15 +49,29 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 4. 環境変数の設定
+### 4. 認証情報の設定（環境別管理）
 
-`.env.example`をコピーして`.env`ファイルを作成し、以下の内容を設定してください：
+このプロジェクトでは環境別認証情報管理を採用しています：
 
-```bash
-cp .env.example .env
+**Windows:**
+```powershell
+.\setup_local.bat
 ```
 
-`.env`ファイルを編集して、実際の値を設定：
+**Linux/Mac:**
+```bash
+chmod +x setup_local.sh
+./setup_local.sh
+```
+
+**Pythonから直接実行:**
+```bash
+python setup_local.py
+```
+
+これにより、`config/credentials.local.env`を元に`.env`ファイルが作成されます。
+
+その後、`.env`ファイルを編集して実際の認証情報を設定してください：
 
 ```env
 # AWS設定
@@ -67,7 +81,6 @@ AWS_DEFAULT_REGION=ap-northeast-3
 
 # Bedrock設定
 BEDROCK_MODEL_ID=apac.anthropic.claude-3-5-sonnet-20241022-v2:0
-BEDROCK_MODEL_ARN=arn:aws:bedrock:ap-northeast-3:YOUR_ACCOUNT_ID:inference-profile/apac.anthropic.claude-3-5-sonnet-20241022-v2:0
 
 # Flask設定
 SECRET_KEY=your-secret-key-here
@@ -77,6 +90,13 @@ FLASK_DEBUG=True
 LOGIN_ID=your-login-id
 LOGIN_PASSWORD=your-password
 ```
+
+**環境別認証情報の管理:**
+- **ローカル開発**: `config/credentials.local.env`
+- **ステージング**: `config/credentials.staging.env.example` を参考に環境変数を設定
+- **本番環境**: `config/credentials.production.env.example` を参考に環境変数を設定
+
+詳細は [`config/README.md`](config/README.md) を参照してください。
 
 ### 5. アプリケーションの起動
 
@@ -125,14 +145,17 @@ python pdf_corrector_gui.py
 - **Top-p/Top-k**: サンプリング制御
 - **統合処理**: テキストと画像分析の最適化
 
-### Frontend
+### Frontend & Deployment
 - **Web版**: Bootstrap 5
 - **GUI版**: tkinter (ネイティブ)
-- **デプロイ**: AWS Elastic Beanstalk
+- **デプロイ**: EC2直接 / Elastic Beanstalk
 
-## デプロイ
+## ドキュメント
 
-AWS Elastic Beanstalkでのデプロイ方法については、[README_AWS_DEPLOY.md](README_AWS_DEPLOY.md)を参照してください。
+- **[EC2デプロイガイド](README_EC2_DEPLOY.md)**: EC2インスタンスへの直接デプロイ手順（推奨）
+- **[Elastic Beanstalkデプロイガイド](README_AWS_DEPLOY.md)**: AWS Elastic Beanstalkへのデプロイ手順
+- **[GUI版ガイド](README_GUI.md)**: デスクトップアプリケーションの使用方法
+- **[プログラム仕様書](プログラム仕様書.md)**: システムの詳細仕様
 
 ## セキュリティ
 

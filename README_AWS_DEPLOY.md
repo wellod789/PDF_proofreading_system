@@ -99,7 +99,8 @@ aws_kousei/
 │   └── robots.txt
 ├── deploy.sh               # Linux/Mac用デプロイスクリプト
 ├── deploy.ps1              # Windows用デプロイスクリプト
-└── env.example             # 環境変数テンプレート
+└── config/                 # 環境別認証情報
+    └── credentials.*.env.example
 ```
 
 ## トラブルシューティング

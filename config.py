@@ -1,7 +1,34 @@
 import os
 from dotenv import load_dotenv
 
-load_dotenv()
+# 環境に応じた認証情報ファイルを読み込む
+def load_credentials():
+    """
+    環境変数ENVに応じて適切な認証情報ファイルを読み込む
+    ENV=local → config/credentials.local.env
+    ENV=staging → config/credentials.staging.env
+    ENV=production → config/credentials.production.env
+    未設定 → config/credentials.local.env（デフォルト）
+    """
+    env = os.getenv('ENV', 'local')
+    
+    if env == 'production':
+        credential_file = 'config/credentials.production.env'
+    elif env == 'staging':
+        credential_file = 'config/credentials.staging.env'
+    else:  # local or default
+        credential_file = 'config/credentials.local.env'
+    
+    # 環境に応じたファイルが存在する場合は読み込む
+    if os.path.exists(credential_file):
+        load_dotenv(credential_file)
+    else:
+        # フォールバック: ルートディレクトリの.envファイル
+        load_dotenv('.env')
+        print(f"Warning: {credential_file} not found, using .env instead")
+
+# 認証情報を読み込む
+load_credentials()
 
 class Config:
     # AWS設定
