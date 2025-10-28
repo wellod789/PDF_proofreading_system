@@ -9,11 +9,15 @@ from datetime import datetime
 import openpyxl
 from openpyxl.styles import Font, PatternFill
 import pdfplumber
-from pdf2image import convert_from_path
+import fitz  # PyMuPDF
 from PIL import Image
 import io
 import base64
+import urllib3
 from config import Config
+
+# SSL証明書の警告を抑える（本番環境では適切な証明書を使用）
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 class PDFCorrector:
     def __init__(self):
@@ -23,7 +27,8 @@ class PDFCorrector:
             service_name='bedrock-runtime',
             region_name=Config.AWS_DEFAULT_REGION,
             aws_access_key_id=Config.AWS_ACCESS_KEY_ID,
-            aws_secret_access_key=Config.AWS_SECRET_ACCESS_KEY
+            aws_secret_access_key=Config.AWS_SECRET_ACCESS_KEY,
+            verify=True  # SSL証明書の検証を有効化
         )
     
     def extract_text_from_pdf(self, pdf_path):
@@ -214,31 +219,39 @@ class PDFCorrector:
     def run_image_analysis(self, pdf_path):
         """画像分析処理の実行"""
         try:
-            # PDFを画像に変換
-            images = convert_from_path(pdf_path, dpi=200)
+            # PyMuPDFでPDFを開く
+            doc = fitz.open(pdf_path)
             
             # 最大ページ数制限
-            max_pages = min(len(images), Config.MAX_PDF_PAGES)
-            images = images[:max_pages]
+            max_pages = min(len(doc), Config.MAX_PDF_PAGES)
             
             corrections = []
-            for i, image in enumerate(images):
-                page_num = i + 1
+            for page_num in range(max_pages):
+                # PDFページを画像に変換（dpi=200相当）
+                page = doc[page_num]
+                # zoomを2に設定してdpi=200相当にする
+                zoom = 200 / 72  # 72 DPIが基本
+                matrix = fitz.Matrix(zoom, zoom)
+                pix = page.get_pixmap(matrix=matrix)
+                
+                # PyMuPDFのPixmapをPIL Imageに変換
+                img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
                 
                 # 画像をbase64エンコード
                 img_buffer = io.BytesIO()
-                image.save(img_buffer, format='PNG')
+                img.save(img_buffer, format='PNG')
                 img_base64 = base64.b64encode(img_buffer.getvalue()).decode('utf-8')
                 
                 # AI分析
-                analysis_result = self.analyze_image_with_claude(img_base64, page_num)
+                analysis_result = self.analyze_image_with_claude(img_base64, page_num + 1)
                 corrections.append({
                     'type': 'image',
-                    'page': page_num,
-                    'content': f"ページ {page_num} の画像分析",
+                    'page': page_num + 1,
+                    'content': f"ページ {page_num + 1} の画像分析",
                     'correction': analysis_result
                 })
             
+            doc.close()
             return corrections
             
         except Exception as e:

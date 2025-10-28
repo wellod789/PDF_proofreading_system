@@ -13,10 +13,15 @@ import boto3
 import json
 import base64
 import io
+import urllib3
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from pdf2image import convert_from_path
+import fitz  # PyMuPDF
+from PIL import Image
 from pdf_corrector_module import PDFCorrector
 from config import Config
+
+# SSL証明書の警告を抑える（本番環境では適切な証明書を使用）
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 class PDFCorrectorGUI:
     def __init__(self, root):
@@ -44,7 +49,8 @@ class PDFCorrectorGUI:
                 service_name='bedrock-runtime',
                 region_name=Config.AWS_DEFAULT_REGION,
                 aws_access_key_id=Config.AWS_ACCESS_KEY_ID,
-                aws_secret_access_key=Config.AWS_SECRET_ACCESS_KEY
+                aws_secret_access_key=Config.AWS_SECRET_ACCESS_KEY,
+                verify=True  # SSL証明書の検証を有効化
             )
             self.ai_enabled = True
         except Exception as e:
@@ -412,56 +418,42 @@ class PDFCorrectorGUI:
     def run_image_analysis(self):
         """画像分析処理の実行（並列処理用）"""
         try:
-            # PDFを画像に変換
+            # PyMuPDFでPDFを開く
             self.root.after(0, lambda: self.update_progress("PDFを画像に変換中..."))
-            images = convert_from_path(self.selected_file, dpi=200)
+            doc = fitz.open(self.selected_file)
             
             # 最大ページ数制限
-            max_pages = min(len(images), Config.MAX_PDF_PAGES)
-            images = images[:max_pages]
-            
-            # 画像保存は非表示機能のため削除
-            # saved_files = []
-            # if self.save_images.get():
-            #     os.makedirs('converted_images', exist_ok=True)
-            #     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            #     base_name = os.path.splitext(os.path.basename(self.selected_file))[0]
+            max_pages = min(len(doc), Config.MAX_PDF_PAGES)
             
             corrections = []
-            for i, image in enumerate(images):
-                page_num = i + 1
-                self.root.after(0, lambda msg=f"ページ {page_num} をAI分析中...": self.update_progress(msg))
+            for page_num in range(max_pages):
+                display_page = page_num + 1
+                self.root.after(0, lambda msg=f"ページ {display_page} をAI分析中...": self.update_progress(msg))
+                
+                # PDFページを画像に変換（dpi=200相当）
+                page = doc[page_num]
+                zoom = 200 / 72  # 72 DPIが基本
+                matrix = fitz.Matrix(zoom, zoom)
+                pix = page.get_pixmap(matrix=matrix)
+                
+                # PyMuPDFのPixmapをPIL Imageに変換
+                img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
                 
                 # 画像をbase64エンコード
                 img_buffer = io.BytesIO()
-                image.save(img_buffer, format='PNG')
+                img.save(img_buffer, format='PNG')
                 img_base64 = base64.b64encode(img_buffer.getvalue()).decode('utf-8')
                 
-                # 画像保存は非表示機能のため削除
-                # if self.save_images.get():
-                #     filename = f"{base_name}_page_{page_num:03d}_{timestamp}.png"
-                #     filepath = os.path.join('converted_images', filename)
-                #     image.save(filepath)
-                #     saved_files.append(filepath)
-                
                 # AI分析
-                analysis_result = self.analyze_image_with_claude(img_base64, page_num)
+                analysis_result = self.analyze_image_with_claude(img_base64, display_page)
                 corrections.append({
                     'type': 'image',
-                    'page': page_num,
-                    'content': f"ページ {page_num} の画像分析（視覚的問題検出含む）",
+                    'page': display_page,
+                    'content': f"ページ {display_page} の画像分析（視覚的問題検出含む）",
                     'correction': analysis_result
                 })
             
-            # 画像保存情報は非表示機能のため削除
-            # if saved_files:
-            #     corrections.append({
-            #         'type': 'info',
-            #         'page': 0,
-            #         'content': f"保存された画像ファイル: {len(saved_files)}個",
-            #         'correction': f"converted_images/ フォルダに保存されました。\nファイル一覧:\n" + "\n".join([os.path.basename(f) for f in saved_files])
-            #     })
-            
+            doc.close()
             return corrections
             
         except Exception as e:
