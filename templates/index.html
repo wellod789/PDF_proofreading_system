@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex">
+    <meta name="googlebot" content="noindex, nofollow, noarchive, nosnippet, noimageindex">
+    <title>PDF校正システム</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .upload-area {
+            border: 2px dashed #007bff;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            background-color: #f8f9fa;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .upload-area:hover {
+            border-color: #0056b3;
+            background-color: #e9ecef;
+        }
+        .upload-area.dragover {
+            border-color: #28a745;
+            background-color: #d4edda;
+        }
+        .result-card {
+            margin-top: 20px;
+        }
+        .correction-item {
+            border-left: 4px solid #007bff;
+            padding: 15px;
+            margin: 10px 0;
+            background-color: #f8f9fa;
+            border-radius: 0 5px 5px 0;
+        }
+        .correction-item.image {
+            border-left-color: #28a745;
+        }
+        .loading {
+            display: none;
+        }
+        .spinner-border-sm {
+            width: 1rem;
+            height: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-10">
+                <div class="card shadow">
+                    <div class="card-header bg-primary text-white">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h2 class="mb-0">
+                                    <i class="fas fa-file-pdf me-2"></i>
+                                    PDF校正システム
+                                </h2>
+                                <p class="mb-0 mt-2">AI（Claude 3.5 Sonnet v2）による自動校正</p>
+                            </div>
+                            <a href="/logout" class="btn btn-outline-light">
+                                <i class="fas fa-sign-out-alt me-2"></i>ログアウト
+                            </a>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <!-- アップロードエリア -->
+                        <div id="uploadArea" class="upload-area">
+                            <i class="fas fa-cloud-upload-alt fa-3x text-primary mb-3"></i>
+                            <h4>PDFファイルをアップロード</h4>
+                            <p class="text-muted">ドラッグ&ドロップまたはクリックしてファイルを選択</p>
+                            <input type="file" id="fileInput" accept=".pdf" style="display: none;">
+                            <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
+                                <i class="fas fa-folder-open me-2"></i>ファイルを選択
+                            </button>
+                        </div>
+
+                        <!-- ローディング表示 -->
+                        <div id="loadingArea" class="loading text-center mt-4">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">処理中...</span>
+                            </div>
+                            <p class="mt-2">PDFを処理中です。しばらくお待ちください...</p>
+                        </div>
+
+                        <!-- 結果表示エリア -->
+                        <div id="resultArea" class="result-card" style="display: none;">
+                            <div class="card">
+                                <div class="card-header bg-success text-white">
+                                    <h5 class="mb-0">
+                                        <i class="fas fa-check-circle me-2"></i>
+                                        校正完了
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <div id="correctionsList"></div>
+                                    <div class="mt-3">
+                                        <button id="downloadBtn" class="btn btn-success">
+                                            <i class="fas fa-download me-2"></i>エクセルファイルをダウンロード
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- エラー表示エリア -->
+                        <div id="errorArea" class="alert alert-danger mt-3" style="display: none;">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <span id="errorMessage"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 機能説明 -->
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-info-circle me-2"></i>
+                            機能説明
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <h6><i class="fas fa-spell-check text-primary me-2"></i>誤字脱字チェック</h6>
+                                <p class="text-muted small">テキストの誤字脱字を自動検出し、修正提案を行います。</p>
+                            </div>
+                            <div class="col-md-4">
+                                <h6><i class="fas fa-image text-success me-2"></i>画像配置チェック</h6>
+                                <p class="text-muted small">画像の配置ミスや不適切な配置を検出します。</p>
+                            </div>
+                            <div class="col-md-4">
+                                <h6><i class="fas fa-file-excel text-warning me-2"></i>エクセル出力</h6>
+                                <p class="text-muted small">校正結果をエクセルファイルで出力します。</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const loadingArea = document.getElementById('loadingArea');
+        const resultArea = document.getElementById('resultArea');
+        const errorArea = document.getElementById('errorArea');
+        const correctionsList = document.getElementById('correctionsList');
+        const downloadBtn = document.getElementById('downloadBtn');
+
+        let currentExcelFile = '';
+
+        // ドラッグ&ドロップイベント
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        // ファイル選択イベント
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+
+        // ファイル処理
+        function handleFile(file) {
+            if (!file.type.includes('pdf')) {
+                showError('PDFファイルを選択してください。');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            showLoading();
+            hideError();
+            hideResult();
+
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                hideLoading();
+                if (data.success) {
+                    showResult(data.corrections);
+                    currentExcelFile = data.excel_file;
+                } else {
+                    showError(data.error || 'エラーが発生しました。');
+                }
+            })
+            .catch(error => {
+                hideLoading();
+                showError('アップロード中にエラーが発生しました: ' + error.message);
+            });
+        }
+
+        // ローディング表示
+        function showLoading() {
+            loadingArea.style.display = 'block';
+            uploadArea.style.display = 'none';
+        }
+
+        function hideLoading() {
+            loadingArea.style.display = 'none';
+            uploadArea.style.display = 'block';
+        }
+
+        // エラー表示
+        function showError(message) {
+            document.getElementById('errorMessage').textContent = message;
+            errorArea.style.display = 'block';
+        }
+
+        function hideError() {
+            errorArea.style.display = 'none';
+        }
+
+        // 結果表示
+        function showResult(corrections) {
+            correctionsList.innerHTML = '';
+            
+            if (corrections.length === 0) {
+                correctionsList.innerHTML = '<div class="alert alert-info">校正対象となる問題は見つかりませんでした。</div>';
+            } else {
+                corrections.forEach((correction, index) => {
+                    const correctionDiv = document.createElement('div');
+                    correctionDiv.className = `correction-item ${correction.type}`;
+                    
+                    const typeIcon = correction.type === 'text' ? 'fas fa-font' : 'fas fa-image';
+                    const typeLabel = correction.type === 'text' ? 'テキスト' : '画像';
+                    
+                    correctionDiv.innerHTML = `
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <h6><i class="${typeIcon} me-2"></i>${typeLabel} (ページ ${correction.page})</h6>
+                                <p class="mb-2"><strong>内容:</strong> ${correction.content}</p>
+                                <div class="bg-white p-3 rounded">
+                                    <strong>校正結果:</strong><br>
+                                    <pre class="mb-0" style="white-space: pre-wrap;">${correction.correction}</pre>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    correctionsList.appendChild(correctionDiv);
+                });
+            }
+            
+            resultArea.style.display = 'block';
+        }
+
+        function hideResult() {
+            resultArea.style.display = 'none';
+        }
+
+        // ダウンロードボタン
+        downloadBtn.addEventListener('click', () => {
+            if (currentExcelFile) {
+                window.location.href = `/download/${currentExcelFile}`;
+            }
+        });
+    </script>
+</body>
+</html>

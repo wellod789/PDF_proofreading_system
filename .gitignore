@@ -1,0 +1,89 @@
+# 環境変数ファイル
+.env
+.env.local
+.env.production
+
+# configディレクトリの認証情報ファイル（実際の認証情報は除外、テンプレートは含める）
+config/credentials.local.env
+config/credentials.staging.env
+config/credentials.production.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# 仮想環境
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# アップロードファイル
+uploads/
+outputs/
+converted_images/
+
+# ログファイル
+*.log
+
+# 一時ファイル
+temp_*
+*.tmp
+
+# 設定ファイル（機密情報含む）
+config_bk.py
+
+# 圧縮ファイル
+*.zip
+*.tar.gz
+*.rar
+
+# 個人用ファイル
+_コマンド.txt
+_gomi/
+
+# PyInstaller関連
+*.spec.bak
+*.spec~
+
+# その他
+.DS_Store
+*.bak
+*.swp
+*~
